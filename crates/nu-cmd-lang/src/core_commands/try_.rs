@@ -28,6 +28,16 @@ impl Command for Try {
                 ),
                 "Closure to run if try block fails.",
             )
+            .optional(
+                "else_block",
+                SyntaxShape::Keyword(b"else".to_vec(), Box::new(SyntaxShape::Block)),
+                "Code to run if try block completes without error (catch does not run).",
+            )
+            .optional(
+                "finally_block",
+                SyntaxShape::Keyword(b"finally".to_vec(), Box::new(SyntaxShape::Block)),
+                "Code to run no matter what after the try, catch and else.",
+            )
             .category(Category::Core)
     }
 

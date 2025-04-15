@@ -381,20 +381,45 @@ pub(crate) fn compile_try(
     //       push-positional %err_reg
     //       call "do", %io_reg
     // END:
+
+    let mut positional_iter = call.positional_iter();
+
     let invalid = || CompileError::InvalidKeywordCall {
         keyword: "try".into(),
         span: call.head,
     };
 
-    let block_arg = call.positional_nth(0).ok_or_else(invalid)?;
+    let block_arg = positional_iter.next().ok_or_else(invalid)?;
     let block_id = block_arg.as_block().ok_or_else(invalid)?;
     let block = working_set.get_block(block_id);
 
-    let catch_expr = match call.positional_nth(1) {
-        Some(kw_expr) => Some(kw_expr.as_keyword().ok_or_else(invalid)?),
-        None => None,
-    };
+    let mut catch_expr: Option<&Expression> = None;
+    let mut else_expr: Option<&Expression> = None;
+    let mut finally_expr: Option<&Expression> = None;
+
+    for expression in positional_iter {
+        match &expression.expr {
+            Expr::Keyword(kw) => match kw.keyword.as_ref() {
+                b"catch" => {
+                    catch_expr = Some(&kw.expr);
+                }
+                b"else" => {
+                    else_expr = Some(&kw.expr);
+                }
+                b"finally" => {
+                    finally_expr = Some(&kw.expr);
+                }
+                _ => return Err(invalid()),
+            },
+            _ => {
+                return Err(invalid());
+            }
+        }
+    }
+
     let catch_span = catch_expr.map(|e| e.span).unwrap_or(call.head);
+    let else_span = else_expr.map(|e| e.span).unwrap_or(call.head);
+    let finally_span = finally_expr.map(|e| e.span).unwrap_or(call.head);
 
     let err_label = builder.label(None);
     let end_label = builder.label(None);
