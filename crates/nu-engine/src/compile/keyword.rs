@@ -422,7 +422,7 @@ pub(crate) fn compile_try(
     let finally_span = finally_expr.map(|e| e.span).unwrap_or(call.head);
 
     let err_label = builder.label(None);
-    let end_label = builder.label(None);
+    let try_catch_end_label = builder.label(None);
 
     // We have two ways of executing `catch`: if it was provided as a literal, we can inline it.
     // Otherwise, we have to evaluate the expression and keep it as a register, and then call `do`.
@@ -500,7 +500,7 @@ pub(crate) fn compile_try(
     builder.push(Instruction::PopErrorHandler.into_spanned(call.head))?;
 
     // Jump over the failure case
-    builder.jump(end_label, catch_span)?;
+    builder.jump(try_catch_end_label, catch_span)?;
 
     // This is the error handler
     builder.set_label(err_label, builder.here())?;
@@ -581,8 +581,8 @@ pub(crate) fn compile_try(
         }
     }
 
-    // This is the end - if we succeeded, should jump here
-    builder.set_label(end_label, builder.here())?;
+    // If try block succeeded, should jump here
+    builder.set_label(try_catch_end_label, builder.here())?;
 
     if let Some(expr) = finally_expr {
         let finally_block_id =
