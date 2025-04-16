@@ -536,7 +536,7 @@ pub(crate) fn compile_try(
                 working_set,
                 builder,
                 block,
-                redirect_modes,
+                redirect_modes.clone(),
                 Some(io_reg),
                 io_reg,
             )?;
@@ -583,6 +583,34 @@ pub(crate) fn compile_try(
 
     // This is the end - if we succeeded, should jump here
     builder.set_label(end_label, builder.here())?;
+
+    if let Some(expr) = finally_expr {
+        let finally_block_id =
+            expr.as_block()
+                .ok_or_else(|| CompileError::UnexpectedExpression {
+                    expr_name: "finally".to_string(),
+                    span: finally_span,
+                })?;
+        let finally_block = working_set.get_block(finally_block_id);
+
+        let tmp_reg = builder.clone_reg(io_reg, finally_span)?; // TODO remove finally_span
+        compile_block(
+            working_set,
+            builder,
+            finally_block,
+            redirect_modes.clone(),
+            None,
+            io_reg,
+        )?;
+
+        builder.push(
+            Instruction::Clone {
+                dst: io_reg,
+                src: tmp_reg,
+            }
+            .into_spanned(catch_span),
+        )?
+    }
 
     Ok(())
 }
