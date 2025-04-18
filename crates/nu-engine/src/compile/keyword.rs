@@ -422,7 +422,8 @@ pub(crate) fn compile_try(
     let finally_span = finally_expr.map(|e| e.span).unwrap_or(call.head);
 
     let err_label = builder.label(None);
-    let try_catch_end_label = builder.label(None);
+    let else_label = builder.label(None);
+    let finally_label = builder.label(None);
 
     // We have two ways of executing `catch`: if it was provided as a literal, we can inline it.
     // Otherwise, we have to evaluate the expression and keep it as a register, and then call `do`.
@@ -500,7 +501,7 @@ pub(crate) fn compile_try(
     builder.push(Instruction::PopErrorHandler.into_spanned(call.head))?;
 
     // Jump over the failure case
-    builder.jump(try_catch_end_label, catch_span)?;
+    builder.jump(else_label, catch_span)?;
 
     // This is the error handler
     builder.set_label(err_label, builder.here())?;
@@ -581,8 +582,42 @@ pub(crate) fn compile_try(
         }
     }
 
+    // Jump over the else case, since the catch closure ran
+    builder.jump(finally_label, catch_span)?;
+
     // If try block succeeded, should jump here
-    builder.set_label(try_catch_end_label, builder.here())?;
+    builder.set_label(else_label, builder.here())?;
+
+    if let Some(expr) = else_expr {
+        let finally_block_id =
+            expr.as_block()
+                .ok_or_else(|| CompileError::UnexpectedExpression {
+                    expr_name: "else".to_string(),
+                    span: else_span,
+                })?;
+        let else_block = working_set.get_block(finally_block_id);
+
+        let tmp_reg = builder.clone_reg(io_reg, else_span)?;
+        compile_block(
+            working_set,
+            builder,
+            else_block,
+            redirect_modes.clone(),
+            None,
+            io_reg,
+        )?;
+
+        builder.push(
+            Instruction::Clone {
+                dst: io_reg,
+                src: tmp_reg,
+            }
+            .into_spanned(catch_span),
+        )?
+    }
+
+    // Will be reached in all cases (error or not)
+    builder.set_label(finally_label, builder.here())?;
 
     if let Some(expr) = finally_expr {
         let finally_block_id =
@@ -593,7 +628,7 @@ pub(crate) fn compile_try(
                 })?;
         let finally_block = working_set.get_block(finally_block_id);
 
-        let tmp_reg = builder.clone_reg(io_reg, finally_span)?; // TODO remove finally_span
+        let tmp_reg = builder.clone_reg(io_reg, finally_span)?;
         compile_block(
             working_set,
             builder,
