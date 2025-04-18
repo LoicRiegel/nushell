@@ -101,6 +101,21 @@ impl Command for Try {
                 example: "try { 1 / 0 } catch { |err| $err.msg }",
                 result: None,
             },
+            Example {
+                description: "Run a block of code in case no error was caught. Note: the result of the 'else' block is ignored.",
+                example: "try { 1 / 0 } catch { |err| print $err.msg; 'division failed' } else { print 'division succeeded'; }",
+                result: None,
+            },
+            Example {
+                description: "Run a block of code at the end no matter what, usually used to cleanup or close resources. Note: the result of the 'finally' block is ignored.",
+                example: "try { print 'open resource'; 1 / 0 } catch { |err| print $err.msg; 'division failed' } else { print 'division succeeded'; } finally { print 'close resource'; }",
+                result: None,
+            },
+            Example {
+                description: "Run a block of code at the end no matter what, usually used to cleanup or close resources. Note: the result of the 'finally' block is ignored.",
+                example: "try { print 'open resource'; 1 / 0 } finally { print 'close resource'; }",
+                result: None,
+            },
         ]
     }
 }

@@ -15,6 +15,59 @@ fn try_catch() {
 }
 
 #[test]
+fn try_catch_else_when_no_error() {
+    let output = nu!("try { 345 } catch { echo 'catch' } else { print 'else' }");
+
+    assert!(!output.out.contains("catch"));
+    assert!(output.out.contains("else"));
+}
+
+#[test]
+fn try_catch_else_when_error() {
+    let output = nu!("try { foobarbaz } catch { echo 'catch' } else { print 'else' }");
+
+    assert!(output.out.contains("catch"));
+    assert!(!output.out.contains("else"));
+}
+
+#[test]
+fn try_catch_else_finally_when_no_error() {
+    let output =
+        nu!("try { 345 } catch { echo 'catch' } else { print 'else' } finally { print 'finally' }");
+
+    assert!(!output.out.contains("catch"));
+    assert!(output.out.contains("else"));
+    assert!(output.out.contains("finally"));
+}
+
+#[test]
+fn try_catch_else_finally_when_error() {
+    let output = nu!("try { foobarbaz } catch { echo 'catch' } else { print 'else' } finally { print 'finally' }");
+
+    assert!(output.out.contains("catch"));
+    assert!(!output.out.contains("else"));
+    assert!(output.out.contains("finally"));
+}
+
+// TODO before merging: reactivate
+#[ignore]
+#[test]
+fn try_finally_when_no_error() {
+    let output = nu!("try { 345 } finally { print 'finally' }");
+
+    assert!(output.out.contains("finally"));
+}
+
+// TODO before merging: reactivate
+#[ignore]
+#[test]
+fn try_finally_when_error() {
+    let output = nu!("try { foobarbaz } finally { print 'finally' }");
+
+    assert!(output.out.contains("finally"));
+}
+
+#[test]
 fn catch_can_access_error() {
     let output = nu!("try { foobarbaz } catch { |err| $err | get raw }");
 
